@@ -1,18 +1,44 @@
 {
-  "name": "zustand",
+  "name": "@minimal/zustand",
+  "type": "module",
   "version": "1.0.0",
   "packageManager": "pnpm@10.6.5",
   "description": "",
   "author": "",
   "license": "ISC",
   "keywords": [],
-  "main": "index.js",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": {
+        "import": "./dist/index.d.mts",
+        "require": "./dist/index.d.cts"
+      },
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    },
+    "./vanilla": {
+      "types": {
+        "import": "./dist/vanilla.d.mts",
+        "require": "./dist/vanilla.d.cts"
+      },
+      "import": "./dist/vanilla.mjs",
+      "require": "./dist/vanilla.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "dist"
+  ],
   "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "dependencies": {
-    "react": "^19.2.3",
-    "zustand": "^5.0.9"
+  "peerDependencies": {
+    "react": ">=18"
   },
   "devDependencies": {
     "@types/react": "^19.2.7"

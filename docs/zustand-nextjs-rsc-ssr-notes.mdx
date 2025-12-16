@@ -1,0 +1,118 @@
+---
+title: Zustand + Next.js（RSC/SSR）初始值与 Store 创建方式笔记
+date: 2025-12-16
+description: 讨论 Next.js 为什么更推荐 Provider/Context + per-request store，以及 useState 惰性初始化的意义。
+---
+
+# 背景
+
+目标：验证 Zustand（含自定义实现 `@minimal/zustand`）在 **RSC/SSR + Hydration** 场景下的“初始值适配”，避免仅用 `useMemo` 这类手段做临时缓存。
+
+我们围绕 Next.js App Router 的 demo，逐步把 store 的创建方式从“在 Client 组件里 `useMemo` 生成 hook store”调整为“vanilla store + `getInitialState` 支持水合一致性”，并讨论了 Next.js 官方指南推荐的 `Context/Provider` 模式。
+
+---
+
+# 讨论要点（Q&A）
+
+## Q1：为什么不建议用 `useMemo` 去创建 store？
+
+- `useMemo` 的语义是“缓存计算结果以优化性能”，不是“保证实例生命周期”。
+- 在 React 18/Next.js 的实际渲染与重放（re-render）路径下，`useMemo` 的“稳定性”更像一种实现细节，做实例管理不够明确。
+- 更推荐的模式是：**把 store 当成“实例资源”**，使用惰性初始化确保只创建一次。
+
+---
+
+## Q2：你把 store 创建改成 `useState(() => createStore(...))`，是为了避免单例/多实例问题吗？
+
+不是单纯为了“避免单例/多实例”，更准确是为了两件事：
+
+1) **保证同一次挂载期间只创建一次 store，并且在后续 render 中保持稳定引用**
+
+- 写成 `useState(() => createStore(...))` 表达的是：
+  - 这个 store 属于该组件实例
+  - 只在首次渲染时创建一次
+
+2) **符合当前 React/ESLint 对 render 期访问 ref 的规则**
+
+- 我们尝试过 `useRef`（例如 `if (ref.current == null) ref.current = ...`）的初始化模式，但在当前工程的 lint/编译规则下会报：
+  - “Cannot access refs during render”
+- `useState` 的惰性初始化能达到相同目的，同时规避这类规则约束。
+
+补充：
+- 组件内部 `useState` 创建 store ⇒ **组件实例级别多实例**（渲染两份组件就两份 store）。
+- 模块顶层 `const store = createStore(...)` ⇒ **bundle 级别单例**（所有使用者共享）。
+
+---
+
+## Q3：我看官方 Next.js 指南推荐 `Context/Provider`，和你现在的方式有什么区别？
+
+核心区别是 **store 的“共享范围/作用域（scope）”** 与 **生命周期管理**。
+
+### 你现在 demo 的方式（组件内创建）
+
+- 在单个 Client 组件内部：`useState(() => createStore(...))`
+- 优点：
+  - 结构最简单
+  - 适合 demo/小部件自包含
+- 缺点：
+  - 共享能力弱：如果多个子组件都要用同一个 store，会变得难组织（需要层层传 store 或重复创建）
+
+### 官方推荐方式（Provider + Context）
+
+- 在 Provider 内创建 store（同样是 `useState(() => createStore())`）
+- 通过 `Context.Provider` 向下提供 store
+- 再封装 `useXStore(selector)` 从 context 取 store 并订阅
+- 优点：
+  - Provider 子树内 **共享同一个 store**
+  - 易于按路由/布局控制 store 生命周期（放在 `layout.tsx` 或 `page.tsx`）
+  - 更贴近真实项目的组织方式
+
+结论：两者都能做到“只创建一次并稳定”，Provider 方案更适合“多组件共享 + 生命周期可控”。
+
+---
+
+## Q4：为什么 React 项目里常常可以直接用（甚至全局单例），Next.js 里却要多包一层？
+
+因为运行模型不同。
+
+### 1) Next.js 有“服务端并发请求”
+
+- 纯 React SPA 通常只在浏览器跑：一个用户上下文，不存在“一个进程同时服务多个用户请求”。
+- Next.js SSR：一个 Node 进程会同时渲染多个请求。
+  - 如果 store 写成模块顶层单例，可能出现 **跨请求污染（A 用户的 state 被 B 用户读到）**。
+  - 因此指南强调：**No global stores**，要 per-request 创建。
+
+### 2) Next.js 有 SSR + Hydration 一致性要求
+
+- SPA 没有“服务端 HTML → 客户端水合”这步，不容易出现 hydration mismatch。
+- Next.js 先服务端渲染，再客户端水合：
+  - 服务端输出与客户端首次渲染必须一致，否则就有 hydration warning/error。
+  - store 的初始化数据需要“服务端算出 → 客户端用同一份数据重建”，并且订阅时 server snapshot 要正确（例如使用 `getInitialState`）。
+
+### 3) Next.js 路由/布局决定状态生命周期
+
+- Provider 放在 `layout.tsx` ⇒ 更“全局”
+- Provider 放在 `page.tsx` ⇒ 每个路由一份（路由切换时可重置）
+
+这也是“包一层 Provider”更自然的原因：**让 store 生命周期跟组件树/路由层级绑定**。
+
+---
+
+# 额外：如何“直接制造 hydration warning”做验证？
+
+思路：在客户端水合阶段，让“server snapshot”与“client snapshot”不一致。
+
+- 正确做法：订阅时用 `getInitialState` 作为 server snapshot（避免 mismatch）。
+- 错误做法（用于演示）：把“当前 `getState()`”当作 server snapshot。
+
+同时可以配合一个 `setInterval` 每秒更新 `Date.now()`：
+
+- 一方面用于模拟持续变化的状态
+- 另一方面更容易观察水合阶段的一致性与后续更新
+
+---
+
+# 一句话总结
+
+- 在 React SPA 里，“模块单例 store”通常风险低。
+- 在 Next.js（SSR/RSC）里，必须考虑 **per-request 隔离 + hydration 一致性 + 路由生命周期**，因此官方更推荐用 **store 工厂函数 + Provider/Context** 来控制 store 的作用域与生命周期。

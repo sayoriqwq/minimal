@@ -3,6 +3,10 @@
   "private": true,
   "scripts": {
     "dev": "pnpm -r --parallel dev",
+    "dev:react": "pnpm --filter react-demo dev",
+    "dev:react-demo": "pnpm --filter react-demo dev",
+    "dev:next": "pnpm --filter nextjs-demo dev",
+    "dev:nextjs-demo": "pnpm --filter nextjs-demo dev",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
