@@ -1,13 +1,17 @@
 {
-  "name": "minimal",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "name": "minimal-monorepo",
+  "private": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "lint": "eslint",
+    "lint:fix": "eslint --fix"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "packageManager": "pnpm@10.6.5"
+  "devDependencies": {
+    "@antfu/eslint-config": "^6.7.1",
+    "eslint": "^9.39.2",
+    "eslint-plugin-format": "^1.1.0"
+  }
 }
