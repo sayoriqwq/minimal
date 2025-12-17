@@ -1,17 +1,35 @@
 {
   "name": "@minimal/jotai",
+  "type": "module",
   "version": "1.0.0",
   "packageManager": "pnpm@10.6.5",
   "description": "",
   "author": "",
   "license": "ISC",
   "keywords": [],
-  "main": "index.js",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": {
+        "import": "./dist/index.d.mts",
+        "require": "./dist/index.d.cts"
+      },
+      "import": "./src/minimal.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./src/minimal.js",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "dist",
+    "src"
+  ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "dependencies": {
-    "react": "^19.2.3"
+  "peerDependencies": {
+    "react": ">=18"
   },
   "devDependencies": {
     "@types/react": "^19.2.7"
