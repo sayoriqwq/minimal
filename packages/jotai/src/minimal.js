@@ -9,7 +9,7 @@ import { useEffect, useState } from 'react'
 // dsl，描述 => 配置对象
 export function atom(read, write) {
   // 派生atom
-  if (typeof write === 'function') {
+  if (typeof read === 'function') {
     return { read, write }
   }
 
