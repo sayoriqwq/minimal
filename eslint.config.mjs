@@ -5,4 +5,9 @@ export default antfu({
   nextjs: true,
   react: true,
   typescript: true,
+}, {
+  rules: {
+    'no-console': 'off',
+    'ts/no-explicit-any': 'warn',
+  },
 })
