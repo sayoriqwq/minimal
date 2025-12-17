@@ -72,8 +72,8 @@ function notify(atom) {
     if (d !== atom) {
       notify(d)
     }
-    atomState.listeners.forEach(listener => listener())
   })
+  atomState.listeners.forEach(listener => listener())
 }
 
 // 写入，触发通知
